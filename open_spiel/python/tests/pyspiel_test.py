@@ -62,6 +62,7 @@ EXPECTED_GAMES = frozenset([
     "first_sealed_auction",
     "gin_rummy",
     "go",
+    "go_cellular",
     "goofspiel",
     "havannah",
     "hex",
