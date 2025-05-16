@@ -34,7 +34,7 @@ namespace bargaining {
 namespace {
 
 constexpr const char* kInstancesFilename =
-    "third_party/open_spiel/games/bargaining_instances1000.txt";
+    "open_spiel/games/bargaining/bargaining_instances1000.txt";
 constexpr int kFileNumInstances = 1000;
 
 namespace testing = open_spiel::testing;
@@ -134,6 +134,45 @@ void BasicBargainingFromInstancesFileTests() {
   testing::RandomSimTest(*game, 100);
 }
 
+void BasicBargainingFromCCInstancesTests() {
+  std::shared_ptr<const Game> game = LoadGame("bargaining");
+
+  const auto* bargaining_game = static_cast<const BargainingGame*>(game.get());
+  SPIEL_CHECK_EQ(bargaining_game->AllInstances().size(), kDefaultNumInstances);
+}
+
+void BasicBargainingInstanceMapTests() {
+  std::shared_ptr<const Game> game = LoadGame("bargaining");
+  const auto* bargaining_game = static_cast<const BargainingGame*>(game.get());
+  for (int i = 0; i < bargaining_game->AllInstances().size(); ++i) {
+    const Instance& instance = bargaining_game->GetInstance(i);
+    SPIEL_CHECK_EQ(bargaining_game->GetInstanceIndex(instance), i);
+  }
+}
+
+void BasicBargainingOfferMapTests() {
+  std::shared_ptr<const Game> game = LoadGame("bargaining");
+  const auto* bargaining_game = static_cast<const BargainingGame*>(game.get());
+  for (int i = 0; i < bargaining_game->AllOffers().size(); ++i) {
+    const Offer& offer = bargaining_game->GetOffer(i);
+    SPIEL_CHECK_EQ(bargaining_game->GetOfferIndex(offer), i);
+  }
+}
+
+void BasicBargainingOpponentValuesTests() {
+  std::shared_ptr<const Game> game = LoadGame("bargaining");
+  const auto* bargaining_game = static_cast<const BargainingGame*>(game.get());
+  std::vector<std::vector<int>> expected_values = {
+    {4, 0, 2}, {7, 0, 1}, {1, 3, 1}
+  };
+  std::vector<int> player_values = {1, 2, 3};
+  std::vector<int> opponent_values = {8, 1, 0};
+  std::vector<std::vector<int>> actual_values =
+      bargaining_game->GetPossibleOpponentValues(
+          0, player_values, opponent_values);
+  SPIEL_CHECK_EQ(actual_values, expected_values);
+}
+
 }  // namespace
 }  // namespace bargaining
 }  // namespace open_spiel
@@ -149,4 +188,8 @@ int main(int argc, char** argv) {
   open_spiel::bargaining::BargainingDiscountTest();
   open_spiel::bargaining::BargainingProbEndContinueTest();
   open_spiel::bargaining::BargainingProbEndEndTest();
+  open_spiel::bargaining::BasicBargainingFromCCInstancesTests();
+  open_spiel::bargaining::BasicBargainingInstanceMapTests();
+  open_spiel::bargaining::BasicBargainingOfferMapTests();
+  open_spiel::bargaining::BasicBargainingOpponentValuesTests();
 }

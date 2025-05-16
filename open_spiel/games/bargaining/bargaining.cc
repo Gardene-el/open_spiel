@@ -24,6 +24,7 @@
 #include "open_spiel/abseil-cpp/absl/strings/str_cat.h"
 #include "open_spiel/abseil-cpp/absl/strings/str_join.h"
 #include "open_spiel/abseil-cpp/absl/strings/str_split.h"
+#include "open_spiel/game_parameters.h"
 #include "open_spiel/spiel.h"
 #include "open_spiel/spiel_globals.h"
 #include "open_spiel/spiel_utils.h"
@@ -49,7 +50,8 @@ const GameType kGameType{/*short_name=*/"bargaining",
                          /*provides_observation_string=*/true,
                          /*provides_observation_tensor=*/true,
                          /*parameter_specification=*/
-                         {{"instances_file", GameParameter("")},
+                         {{"instances_file",
+                           GameParameter("")},
                           {"max_turns", GameParameter(kDefaultMaxTurns)},
                           {"discount", GameParameter(kDefaultDiscount)},
                           {"prob_end", GameParameter(kDefaultProbEnd)}}};
@@ -469,6 +471,19 @@ void BargainingGame::ParseInstancesString(const std::string& instances_string) {
             absl::SimpleAtoi(p2values_parts[i], &instance.values[1][i]));
       }
       all_instances_.push_back(instance);
+      instance_map_[instance.ToString()] = all_instances_.size() - 1;
+      std::vector<std::pair<int, std::string>> player_data = {
+        {0, absl::StrCat("player_0,", parts[0], ",", parts[1])},
+        {1, absl::StrCat("player_1,", parts[0], ",", parts[2])}
+      };
+
+      for (const auto& [player, key] : player_data) {
+        if (possible_opponent_values_.contains(key)) {
+          possible_opponent_values_[key].push_back(instance.values[1-player]);
+        } else {
+          possible_opponent_values_[key] = {instance.values[1-player]};
+        }
+      }
     }
   }
 }
@@ -480,6 +495,7 @@ void BargainingGame::CreateOffers() {
     if (std::accumulate(cur_offer.begin(), cur_offer.end(), 0) <=
         kPoolMaxNumItems) {
       all_offers_.push_back(Offer(cur_offer));
+      offer_map_[all_offers_.back().ToString()] = all_offers_.size() - 1;
     }
 
     // Try adding a digit to the left-most, keep going until you can. Then
@@ -503,11 +519,16 @@ BargainingGame::BargainingGame(const GameParameters& params)
       max_turns_(ParameterValue<int>("max_turns", kDefaultMaxTurns)),
       discount_(ParameterValue<double>("discount", kDefaultDiscount)),
       prob_end_(ParameterValue<double>("prob_end", kDefaultProbEnd)) {
-  std::string filename = ParameterValue<std::string>("instances_file", "");
-  if (!filename.empty()) {
+  std::string filename = ParameterValue<std::string>(
+      "instances_file", ""
+  );
+  if (open_spiel::file::Exists(filename)) {
     ParseInstancesFile(filename);
   } else {
-    ParseInstancesString(kDefaultInstancesString);
+    if (!filename.empty()) {
+      std::cerr << "Failed to parse instances file: " << filename << " ";
+    }
+    ParseInstancesString(BargainingInstances1000());
   }
   CreateOffers();
 }
@@ -567,5 +588,17 @@ std::vector<int> BargainingGame::InformationStateTensorShape() const {
   };
 }
 
+std::vector<std::vector<int>> BargainingGame::GetPossibleOpponentValues(
+    int player_id,
+    const std::vector<int>& pool,
+    const std::vector<int>& values) const {
+  std::string key = absl::StrCat(
+      "player_", player_id, ",", absl::StrJoin(pool, ","),
+      ",", absl::StrJoin(values, "," ));
+  if (possible_opponent_values_.contains(key)) {
+    return possible_opponent_values_.at(key);
+  }
+  return {};
+}
 }  // namespace bargaining
 }  // namespace open_spiel
